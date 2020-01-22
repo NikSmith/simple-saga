@@ -35,6 +35,7 @@ class Saga {
     return this;
   }
   async run(data) {
+    const startAt = new Date().getTime();
     let order = 0;
     let ln = this.tasks.length;
     let ctx = { $global: data };
@@ -46,11 +47,13 @@ class Saga {
         tasks = this.tasks.filter(task => task.order <= order && !!task.compensation && !!ctx[task.id]).reverse();    
         let result = await Promise.all(tasks.map(task => this._runCompensation(task, ctx)))
           .then(res => null).catch(err => err);
-        return { error: error.reason, compensationError: result, ctx };
+        let endAt = new Date().getTime();
+        return { error: error.reason, compensationError: result, ctx, time: endAt - startAt };
       }
       order++;
     }
-    return { error: null, compensationError: null, ctx };
+    let endAt = new Date().getTime();
+    return { error: null, compensationError: null, ctx, time: endAt - startAt };
   }
 }
 module.exports = Saga;
