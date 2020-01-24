@@ -4,9 +4,13 @@ class Saga {
     this.tasks = [];
     this.context = {};
   }
-  _runTransaction(task, ctx) {
+  _runTransaction(task, ctx, startAt) {
     return new Promise((resolve, reject) => {
-      return task.transaction.call(this.context, ctx).then(res => ctx[task.id] = res).then(resolve).catch(reject);
+      return task.transaction.call(this.context, ctx).then(res => {
+        ctx["$time"][task.id] = new Date().getTime() - startAt;
+        ctx[task.id] = res
+        return res;
+      }).then(resolve).catch(reject);
     });
   }
   _runCompensation(task, ctx) {
@@ -38,10 +42,10 @@ class Saga {
     const startAt = new Date().getTime();
     let order = 0;
     let ln = this.tasks.length;
-    let ctx = { $global: data };
+    let ctx = { $global: data, $time: {} };
     while(ln > 0 && order<=this.tasks[ln-1].order) {
       let tasks = this.tasks.filter(task => task.order === order);
-      let results = await Promise.allSettled(tasks.map(task => this._runTransaction(task, ctx)));
+      let results = await Promise.allSettled(tasks.map(task => this._runTransaction(task, ctx, startAt)));
       let error = results.find(result => result.status === 'rejected');
       if (error) {
         tasks = this.tasks.filter(task => task.order <= order && !!task.compensation && !!ctx[task.id]).reverse();    
