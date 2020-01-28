@@ -4,7 +4,8 @@ class Saga {
     this.tasks = [];
     this.context = {};
   }
-  _runTransaction(task, ctx, startAt) {
+  _runTransaction(task, ctx) {
+    const startAt = new Date().getTime();
     return new Promise((resolve, reject) => {
       return task.transaction.call(this.context, ctx).then(res => {
         ctx["$time"][task.id] = new Date().getTime() - startAt;
